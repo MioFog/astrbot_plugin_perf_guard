@@ -1,0 +1,307 @@
+{
+  "max_context_messages": {
+    "type": "int",
+    "description": "提速：每次请求最多携带多少条上下文（0 = 不裁剪）",
+    "hint": "上下文越长首字越慢。设为 30~50 可明显提速；实际会略多切一点，因为只在 user 消息边界裁剪（保证工具调用配对完整）",
+    "default": 0,
+    "slider": {
+      "min": 0,
+      "max": 200,
+      "step": 5
+    }
+  },
+  "force_streaming": {
+    "type": "bool",
+    "description": "提速：强制对每条消息启用流式输出",
+    "hint": "流式能让机器人更快“开口”（首字更快），但分段发送可能影响少数适配器的排版；默认关闭",
+    "default": false
+  },
+  "command_admin_only": {
+    "type": "bool",
+    "description": "/perf 指令仅管理员可用",
+    "default": true
+  },
+  "ai_enabled": {
+    "type": "bool",
+    "description": "🤖 开启 AI 自动化管理（AI 只提议，管理员批准后才执行）",
+    "hint": "开启后：达到条件时会让 AI 看当前性能状态，给出一个运维提议（释放内存/清日志/调上下文上限/重启）；提议会推送给管理员，只有管理员回复「/perf 批准」才会真正执行。默认关闭",
+    "default": false
+  },
+  "ai_provider_id": {
+    "type": "string",
+    "description": "AI 评估使用的模型提供商 id（留空 = 用当前会话默认模型）",
+    "hint": "在 WebUI 服务提供商页面可以看到 id，也可以发「/perf AI模型」让机器人列出来。建议选一个便宜、快的小模型",
+    "default": ""
+  },
+  "ai_interval_minutes": {
+    "type": "int",
+    "description": "AI 定时评估间隔（分钟，0 = 只在告警或手动时评估）",
+    "hint": "每次评估都会调用一次模型（消耗 token）。不想额外花钱就保持 0，只在内存/卡顿告警时评估",
+    "default": 0
+  },
+  "ai_trigger_on_alarm": {
+    "type": "bool",
+    "description": "内存超标或检测到卡顿时自动让 AI 评估一次",
+    "default": true
+  },
+  "ai_notify_umo": {
+    "type": "string",
+    "description": "AI 提议推送到哪个会话（留空 = 推给触发它的会话，再回退到 notify_umo）",
+    "hint": "格式与 notify_umo 相同，例如 aiocqhttp:GroupMessage:123456789 或 aiocqhttp:FriendMessage:10001",
+    "default": ""
+  },
+  "ai_approval_timeout_seconds": {
+    "type": "int",
+    "description": "AI 提议的审核有效期（秒），超时自动作废",
+    "default": 300
+  },
+  "ai_max_actions_per_hour": {
+    "type": "int",
+    "description": "AI 动作每小时最多执行几次（0 = 完全不允许执行，只提议不落地）",
+    "default": 3
+  },
+  "ai_allow_restart": {
+    "type": "bool",
+    "description": "允许 AI 提议重启（仍需管理员批准；默认关闭）",
+    "hint": "重启会短暂中断服务。即使打开，也必须管理员回复「/perf 批准」才会执行",
+    "default": false
+  },
+  "ai_timeout_seconds": {
+    "type": "int",
+    "description": "AI 评估调用模型的超时（秒）",
+    "default": 60
+  },
+  "llm_admin_only": {
+    "type": "bool",
+    "description": "LLM 工具仅管理员可调用",
+    "default": true
+  },
+  "llm_allow_restart": {
+    "type": "bool",
+    "description": "允许 LLM 调用重启工具（危险，默认关闭）",
+    "default": false
+  },
+  "check_interval_seconds": {
+    "type": "int",
+    "description": "监控检查间隔（秒）",
+    "default": 120
+  },
+  "slow_message_seconds": {
+    "type": "int",
+    "description": "超过多少秒的回复记为“慢消息”（用于 /perf 最慢 排行）",
+    "hint": "只记录、不额外消耗资源；记录会标明慢在预处理/模型/后处理哪一段",
+    "default": 5
+  },
+  "history_enabled": {
+    "type": "bool",
+    "description": "记录性能趋势（供 /perf 报告 查看内存与耗时走势）",
+    "hint": "纯内存运算 + 每 10 分钟落一次盘，开销极小；数据保存在插件数据目录的 history.json",
+    "default": true
+  },
+  "history_interval_minutes": {
+    "type": "int",
+    "description": "趋势采样间隔（分钟）",
+    "default": 10
+  },
+  "history_keep_days": {
+    "type": "int",
+    "description": "趋势数据保留天数",
+    "default": 7
+  },
+  "snapshot_on_alarm": {
+    "type": "bool",
+    "description": "检测到卡顿/内存告警时自动保存一份诊断快照文件",
+    "hint": "快照写在插件数据目录的 snapshots 子目录，用 /perf 快照 查看；60 秒内最多存一份，不会刷文件",
+    "default": true
+  },
+  "snapshot_keep": {
+    "type": "int",
+    "description": "最多保留几份诊断快照",
+    "default": 5
+  },
+  "plugin_error_notify_times": {
+    "type": "int",
+    "description": "🧯 同一个插件在窗口期内报错多少次就通知管理员（0 = 不通知）",
+    "hint": "别的插件处理消息抛异常时，AstrBot 只在日志里写一行，很容易被忽略。本插件会记下来，并在连续报错时主动通知你；用 /perf 报错 可以随时查看排行",
+    "default": 3
+  },
+  "plugin_error_window_minutes": {
+    "type": "int",
+    "description": "插件报错的统计窗口（分钟）",
+    "default": 10
+  },
+  "plugin_error_notify_cooldown_minutes": {
+    "type": "int",
+    "description": "插件报错通知的最小间隔（分钟），避免刷屏",
+    "default": 30
+  },
+  "model_error_notify_times": {
+    "type": "int",
+    "description": "🛑 模型调用连续失败多少次就通知管理员（0 = 不通知）",
+    "hint": "“机器人突然不回话”最常见的原因是 API 中转/密钥/额度/网络出了问题，而不是 AstrBot 卡了。本插件通过 on_llm_response 识别失败响应（role=err）并主动通知",
+    "default": 3
+  },
+  "model_error_notify_cooldown_minutes": {
+    "type": "int",
+    "description": "模型失败通知的最小间隔（分钟）",
+    "default": 30
+  },
+  "disk_free_warn_gb": {
+    "type": "int",
+    "description": "💾 磁盘剩余低于多少 GB 就告警（0 = 关闭告警）",
+    "hint": "磁盘写满会让 AstrBot 无法写日志、无法保存会话，甚至数据损坏。低于警戒线时会通知管理员，并按下面的开关自动清一次日志",
+    "default": 3
+  },
+  "disk_warn_auto_clean": {
+    "type": "bool",
+    "description": "磁盘告警时自动清理一次日志",
+    "default": true
+  },
+  "disk_warn_cooldown_minutes": {
+    "type": "int",
+    "description": "磁盘告警的最小间隔（分钟）",
+    "default": 360
+  },
+  "memory_trace_max_minutes": {
+    "type": "int",
+    "description": "内存追踪最长运行时间（分钟），到点自动关闭并出报告",
+    "hint": "tracemalloc 会略微增加内存与 CPU 开销，所以默认最多开 15 分钟，避免忘了关",
+    "default": 15
+  },
+  "lag_threshold_ms": {
+    "type": "int",
+    "description": "事件循环卡顿报警阈值（毫秒）：超过则记录并定位阻塞代码（越低越敏感）",
+    "default": 1000
+  },
+  "lag_check_interval_ms": {
+    "type": "int",
+    "description": "事件循环延迟采样间隔（毫秒）",
+    "hint": "默认 1000ms（每秒一次）。这个检测本身几乎不耗 CPU，但没必要更密",
+    "default": 1000
+  },
+  "stack_sampling_enabled": {
+    "type": "bool",
+    "description": "开启堆栈采样（用于把卡顿定位到具体插件）",
+    "hint": "这是本插件唯一常驻消耗 CPU 的功能（默认约 0.1% 级别，/perf 状态里会自报开销）。关掉后仍能统计卡顿，但只能显示“(未知)”",
+    "default": true
+  },
+  "stack_sample_interval_ms": {
+    "type": "int",
+    "description": "堆栈采样间隔（毫秒），越小越精确、开销越高",
+    "hint": "默认 200ms。若机器人所在机器很弱，可调到 500ms 或关闭上面的开关",
+    "default": 200,
+    "slider": {
+      "min": 50,
+      "max": 2000,
+      "step": 50
+    }
+  },
+  "auto_restart_enabled": {
+    "type": "bool",
+    "description": "内存连续超阈值时自动重启 AstrBot",
+    "default": false
+  },
+  "memory_threshold_mb": {
+    "type": "int",
+    "description": "内存阈值（MB），超过后先释放、仍超标则按需重启",
+    "default": 800
+  },
+  "memory_trigger_times": {
+    "type": "int",
+    "description": "连续超阈值多少次才触发重启",
+    "default": 3
+  },
+  "restart_cooldown_minutes": {
+    "type": "int",
+    "description": "两次重启之间的最短间隔（分钟）",
+    "default": 30
+  },
+  "scheduled_restart_enabled": {
+    "type": "bool",
+    "description": "每天定时重启",
+    "default": false
+  },
+  "scheduled_restart_time": {
+    "type": "string",
+    "description": "定时重启时间，格式 HH:MM（24 小时制）",
+    "default": "04:00"
+  },
+  "release_interval_seconds": {
+    "type": "int",
+    "description": "内存自动释放间隔（秒），0 = 关闭自动释放",
+    "hint": "默认 1800 秒（30 分钟）。gc 回收本身会有极短暂停顿，别设得太频繁",
+    "default": 1800
+  },
+  "release_threshold_mb": {
+    "type": "int",
+    "description": "内存超过该值才执行自动释放（MB）",
+    "default": 400
+  },
+  "trim_working_set": {
+    "type": "bool",
+    "description": "释放时裁剪进程工作集（把内存换出到系统）",
+    "hint": "⚠️ 默认关闭：裁剪会让任务管理器里的内存数字变小，但内存之后要用回来得走“软缺页”，可能让机器人更卡。只有内存实在紧张（小内存服务器）才建议开",
+    "default": false
+  },
+  "log_cleanup_enabled": {
+    "type": "bool",
+    "description": "自动清理日志文件",
+    "default": true
+  },
+  "log_keep_days": {
+    "type": "int",
+    "description": "日志保留天数，更早的日志会被删除",
+    "default": 7
+  },
+  "log_max_total_mb": {
+    "type": "int",
+    "description": "日志目录总大小上限（MB），超出后从最旧的文件开始删",
+    "default": 200
+  },
+  "log_cleanup_interval_hours": {
+    "type": "int",
+    "description": "日志清理检查间隔（小时）",
+    "default": 6
+  },
+  "clean_pycache_enabled": {
+    "type": "bool",
+    "description": "清理日志时顺带清理 __pycache__ 字节码缓存",
+    "default": false
+  },
+  "log_name_pattern": {
+    "type": "string",
+    "description": "允许清理的日志文件名通配符（多个用英文逗号分隔）",
+    "hint": "默认 astrbot*.log* —— 故意只动 AstrBot 自己的日志，避免误删别的插件放在日志目录里的文件。要连官方卡顿日志一起清可填 astrbot*.log*,event_loop_watchdog.log",
+    "default": "astrbot*.log*"
+  },
+  "notify_umo": {
+    "type": "string",
+    "description": "重启/清理通知发送到的会话 UMO（留空=不发送通知）",
+    "default": ""
+  },
+  "restart_method": {
+    "type": "string",
+    "description": "重启方式",
+    "hint": "auto=自动按 Dashboard 接口 → 进程重启 → 看门狗 依次尝试（推荐）",
+    "default": "auto",
+    "options": ["auto", "api", "process", "watchdog", "hook"]
+  },
+  "allow_restart_without_watchdog": {
+    "type": "bool",
+    "description": "未检测到看门狗时也允许重启",
+    "hint": "开启后重启会让进程退出，若没有看门狗或官方接口，机器人不会自动起来，需要你手动启动",
+    "default": false
+  },
+  "restart_hook": {
+    "type": "string",
+    "description": "高级：自定义重启调用路径，留空=自动",
+    "hint": "例如 context.some_attr.restart，仅在你有特殊需求时填写",
+    "default": ""
+  },
+  "log_dir_override": {
+    "type": "string",
+    "description": "高级：自定义日志目录绝对路径，留空=自动探测",
+    "hint": "AstrBot 默认日志在 <根目录>/data/logs，且需要开启 log_file_enable 才有文件",
+    "default": ""
+  }
+}
